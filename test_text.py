@@ -27,16 +27,6 @@ def test_count_characters(test_file_generator, n_lines):
     assert count_characters(test_file) == n_lines * 6
 
 
-def test_count_bytes_bad():
-    # this is not a good test: it requires internet access, and will break whenever this file is modified
-    assert (
-        count_bytes(
-            "https://github.com/ssciwr/python-testing-intro/raw/main/requirements.txt"
-        )
-        == 16
-    )
-
-
 def test_count_bytes_good(monkeypatch):
     # this is a better test: we monkeypatch requests to return known binary data for this test
     # the test no longer depends on the exact contents of a file on the internet being available and unchanged to work
@@ -47,7 +37,12 @@ def test_count_bytes_good(monkeypatch):
             # hard-code content for this test
             self.content = b"abc123"
 
-    monkeypatch.setattr(requests, "get", lambda _: FakeRequestsGetReturnObject())
+        def raise_for_status(self):
+            pass
+
+    monkeypatch.setattr(
+        requests, "get", lambda *args, **kwargs: FakeRequestsGetReturnObject()
+    )
     assert count_bytes("the-url-is-ignored-in-this-test") == 6
 
 
@@ -62,3 +57,39 @@ def named_tmp_file(tmp_path):
 def test_tmp_file(named_tmp_file):
     tmp_file = named_tmp_file("tempy.temp")
     assert tmp_file.name == "tempy.temp"
+
+
+def test_count_bytes_passes_timeout(monkeypatch):
+    seen = {}
+
+    class FakeResponse:
+        content = b"xyz"
+
+        def raise_for_status(self):
+            pass
+
+    def fake_get(url, **kwargs):
+        seen.update(kwargs)
+        return FakeResponse()
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    assert count_bytes("http://example.invalid") == 3
+    assert seen["timeout"] > 0
+
+
+def test_count_bytes_http_error(monkeypatch):
+    class FakeErrorResponse:
+        content = b"<html>Not Found</html>"
+
+        def raise_for_status(self):
+            raise requests.HTTPError("404")
+
+    monkeypatch.setattr(requests, "get", lambda *a, **k: FakeErrorResponse())
+    with pytest.raises(requests.HTTPError):
+        count_bytes("http://example.invalid")
+
+
+def test_count_characters_non_ascii(tmp_path):
+    f = tmp_path / "u.txt"
+    f.write_text("héllo\n", encoding="utf-8")
+    assert count_characters(f) == 6
