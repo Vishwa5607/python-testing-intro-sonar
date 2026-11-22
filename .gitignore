@@ -141,3 +141,6 @@ cython_debug/
 slides/*.html
 slides/slides.pdf
 slides/slides-thumb.png
+
+coverage.xml
+.coverage
