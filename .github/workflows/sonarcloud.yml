@@ -23,6 +23,6 @@ jobs:
         continue-on-error: true   # baseline has a known failing network test; scan must still run
         run: python -m pytest --cov=. --cov-report=xml:coverage.xml -v
       - name: SonarQube Cloud scan
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@v7
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
